@@ -7,8 +7,8 @@ WORKDIR /app
 # Copy package config
 COPY package.json ./
 
-# Because there are no dependencies, we can skip npm install
-# But it is here if you ever add dependencies
+# No runtime dependencies today, so this is effectively a no-op besides creating node_modules.
+# Kept so adding dependencies later does not require a Dockerfile change.
 RUN npm install --omit=dev
 
 # Copy the rest of the application

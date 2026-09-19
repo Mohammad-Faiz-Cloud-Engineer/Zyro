@@ -502,7 +502,7 @@ body {
     color: var(--text-dim);
     cursor: pointer;
 }
-.chip-btn-clear:hover {
+.chip-btn-clear:hover:not(:disabled) {
     color: var(--danger);
     border-color: var(--danger);
 }

@@ -9,6 +9,7 @@ const TERMINAL_LINE_LIMIT = 100;
 const TOAST_LIMIT = 5;
 const HEALTH_INTERVAL_MS = 25000;
 const HEALTH_TIMEOUT_MS = 10000;
+const DISPATCH_TIMEOUT_MS = 180000;
 const MAX_TOAST_MS = 3500;
 
 function isPrivateOrLocalHost(hostname) {
@@ -77,6 +78,7 @@ const state = {
     healthTimer: null,
     history: loadHistory(),
     pdfKeyHandler: null,
+    lastApiConfig: null,
 };
 
 // ── DOM Elements ──
@@ -142,6 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('beforeunload', () => {
     if (state.healthTimer) clearTimeout(state.healthTimer);
     if (state.healthAbort) state.healthAbort.abort();
+    if (state.abortController) state.abortController.abort();
+    closePdfPreview();
 });
 
 // ── Event Listeners Setup ──
@@ -256,11 +260,21 @@ function syncCountChips(value) {
 }
 
 function applyApiLimits(config) {
-    const maxCount = clamp(config?.max_count ?? 1000, 1, 100000);
-    const maxWorkers = config?.max_workers ?? 40;
+    if (arguments.length > 0) {
+        state.lastApiConfig = (config && typeof config === 'object') ? config : {};
+    }
+    if (!state.lastApiConfig) return;
+
+    const maxCount = clamp(state.lastApiConfig.max_count ?? 1000, 1, 100000);
+    const maxWorkers = state.lastApiConfig.max_workers ?? 40;
 
     els.valMaxCount.textContent = String(maxCount);
     els.valMaxWorkers.textContent = String(maxWorkers);
+
+    // Setting input.max below the current value clamps the control in browsers.
+    // Do not mutate the form while a request is in flight.
+    if (state.isExecuting) return;
+
     els.countSlider.max = String(maxCount);
 
     if (els.rangeMax) els.rangeMax.textContent = String(maxCount);
@@ -327,9 +341,12 @@ async function fetchSystemHealth() {
         try {
             data = await res.json();
         } catch {
+            if (generation !== healthGeneration) return;
             setOfflineStatus();
             return;
         }
+
+        if (generation !== healthGeneration) return;
 
         if (res.ok && data && data.ok) {
             els.apiStatusPill.className = 'api-status-pill online';
@@ -349,6 +366,8 @@ async function fetchSystemHealth() {
 function setOfflineStatus() {
     els.apiStatusPill.className = 'api-status-pill offline';
     els.apiStatusText.textContent = 'Server Offline';
+    els.valDevices.textContent = '-';
+    els.valDatabases.textContent = '-';
 }
 
 function currentTimestamp() {
@@ -409,11 +428,13 @@ async function handleFormSubmit(e) {
     let finishedTimeWritten = false;
 
     const timerInterval = setInterval(() => {
+        if (finishedTimeWritten) return;
         const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
         els.statTime.textContent = `${elapsedSec}s`;
     }, 100);
 
     const stampElapsed = () => {
+        clearInterval(timerInterval);
         if (finishedTimeWritten) return ((Date.now() - startTime) / 1000).toFixed(2);
         const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
         els.statTime.textContent = `${totalDuration}s`;
@@ -425,15 +446,15 @@ async function handleFormSubmit(e) {
         appendLog(`[HTTP] Initiating connection to gateway...`, 'info');
         updateProgress(20, 'Sending Requests...');
 
-        const response = await fetch(targetUrl, {
+        const response = await fetchWithTimeout(targetUrl, {
             signal: state.abortController.signal,
             cache: 'no-store',
-        });
+        }, DISPATCH_TIMEOUT_MS);
 
         let data;
         try {
             data = await response.json();
-        } catch (jsonErr) {
+        } catch {
             throw new Error(`Invalid JSON response (HTTP ${response.status})`);
         }
 
@@ -496,19 +517,36 @@ async function handleFormSubmit(e) {
     } catch (err) {
         const totalDuration = stampElapsed();
         if (err.name === 'AbortError') {
-            updateProgress(0, 'Aborted');
-            appendLog(`[WARN] Session aborted by user operator.`, 'warn');
-            showToast('Mission aborted', 'info');
-            saveSessionHistory({
-                timestamp: currentTimestamp(),
-                target: sessionMeta.target,
-                message: sessionMeta.message,
-                requested: sessionMeta.requested,
-                sent: 0,
-                failed: 0,
-                latency: `${totalDuration}s`,
-                status: 'aborted'
-            });
+            const userAbort = Boolean(state.abortController && state.abortController.signal.aborted);
+            if (userAbort) {
+                updateProgress(0, 'Aborted');
+                appendLog(`[WARN] Session aborted by user operator.`, 'warn');
+                showToast('Mission aborted', 'info');
+                saveSessionHistory({
+                    timestamp: currentTimestamp(),
+                    target: sessionMeta.target,
+                    message: sessionMeta.message,
+                    requested: sessionMeta.requested,
+                    sent: 0,
+                    failed: 0,
+                    latency: `${totalDuration}s`,
+                    status: 'aborted'
+                });
+            } else {
+                updateProgress(0, 'Timed Out');
+                appendLog(`[ERROR] Gateway timed out after ${DISPATCH_TIMEOUT_MS / 1000}s.`, 'error');
+                showToast('Dispatch timed out', 'error');
+                saveSessionHistory({
+                    timestamp: currentTimestamp(),
+                    target: sessionMeta.target,
+                    message: sessionMeta.message,
+                    requested: sessionMeta.requested,
+                    sent: 0,
+                    failed: sessionMeta.requested,
+                    latency: `${totalDuration}s`,
+                    status: 'failed'
+                });
+            }
         } else {
             updateProgress(0, 'Network Error');
             appendLog(`[CRITICAL] Network Exception: ${err.message}`, 'error');
@@ -554,6 +592,7 @@ function setExecutingUI(isExecuting) {
         els.phoneNumber.disabled = false;
         els.customMessage.disabled = false;
         els.countSlider.disabled = false;
+        applyApiLimits();
     }
 }
 
@@ -694,7 +733,7 @@ function exportHistoryCSV() {
         csvCell(row.status)
     ]);
     const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     triggerDownload(blob, `zyro_mission_audit_${Date.now()}.csv`);
     showToast('Exported CSV successfully', 'success');
 }
@@ -835,16 +874,18 @@ function exportHistoryPDF() {
             }
         },
         didDrawPage: function(data) {
-            const pg = doc.internal.getNumberOfPages();
             doc.setFontSize(7);
             doc.setTextColor(...dim);
-            doc.text(`Page ${data.pageNumber} of ${pg}`, pageW - margin, pageH - 8, { align: 'right' });
+            doc.text(`Page ${data.pageNumber} of {totalPages}`, pageW - margin, pageH - 8, { align: 'right' });
             doc.setDrawColor(...border);
             doc.setLineWidth(0.2);
             doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
             doc.text('Zyro Dispatch System', margin, pageH - 8);
         }
     });
+    if (typeof doc.putTotalPages === 'function') {
+        doc.putTotalPages('{totalPages}');
+    }
 
     closePdfPreview();
     const blobUrl = doc.output('bloburl');

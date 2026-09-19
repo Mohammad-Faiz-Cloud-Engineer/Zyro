@@ -19,7 +19,7 @@ Enter a phone number, pick how many messages to send, optionally write a custom 
 
 - **Editable country code** - defaults to +91, change it for international numbers
 - **Custom message** - type whatever you want (up to 2000 chars), or pick a preset. Leave it blank and it sends a default
-- **Bombing count slider** - 1 to 1000, with quick-pick chips for common values
+- **Bombing count slider** - 1 to 1000 by default (the live API `max_count` can raise or lower the cap), with quick-pick chips for common values
 - **Live terminal log** - shows exactly what's happening in real time
 - **Server health check** - auto-pings the backend every 25s, shows green/red status in the navbar
 - **Mission history** - saves past runs to localStorage, exportable as JSON

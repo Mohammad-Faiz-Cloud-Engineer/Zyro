@@ -41,6 +41,12 @@ function isInsideRoot(resolvedPath) {
     return rel === '' || (rel && !rel.startsWith('..') && !path.isAbsolute(rel));
 }
 
+function isForbiddenUrlPath(urlPath) {
+    if (!urlPath || urlPath.includes('\0')) return true;
+    const parts = urlPath.split('/').filter(Boolean);
+    return parts.some((part) => part === '.' || part === '..' || part.startsWith('.'));
+}
+
 function corsPreflight(res) {
     res.writeHead(204, {
         'Access-Control-Allow-Origin': '*',
@@ -76,10 +82,13 @@ const server = http.createServer((req, res) => {
             },
         };
 
+        let settled = false;
         const proxyReq = https.request(options, (proxyRes) => {
             const chunks = [];
             proxyRes.on('data', (chunk) => chunks.push(chunk));
             proxyRes.on('end', () => {
+                settled = true;
+                req.removeListener('close', abortProxy);
                 const body = Buffer.concat(chunks);
                 const headers = {
                     'Content-Type': proxyRes.headers['content-type'] || 'application/json; charset=utf-8',
@@ -88,6 +97,7 @@ const server = http.createServer((req, res) => {
                     'Access-Control-Allow-Headers': 'Content-Type',
                     'Cache-Control': 'no-store',
                 };
+                if (res.writableEnded) return;
                 res.writeHead(proxyRes.statusCode || 502, headers);
                 if (req.method === 'HEAD') {
                     res.end();
@@ -97,12 +107,19 @@ const server = http.createServer((req, res) => {
             });
         });
 
+        const abortProxy = () => {
+            if (!settled) proxyReq.destroy();
+        };
+        req.on('close', abortProxy);
+
         proxyReq.setTimeout(PROXY_TIMEOUT_MS, () => {
             proxyReq.destroy(new Error('Upstream timeout'));
         });
 
         proxyReq.on('error', (err) => {
-            if (res.headersSent) return;
+            req.removeListener('close', abortProxy);
+            if (settled || res.headersSent || res.writableEnded) return;
+            settled = true;
             sendJson(res, 502, { ok: false, error: err.message || 'Bad gateway' });
         });
 
@@ -127,6 +144,12 @@ const server = http.createServer((req, res) => {
     }
 
     if (urlPath === '/') urlPath = '/index.html';
+
+    if (isForbiddenUrlPath(urlPath)) {
+        res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('403 Forbidden');
+        return;
+    }
 
     const filePath = path.resolve(ROOT, '.' + urlPath.replace(/\\/g, '/'));
 
@@ -170,5 +193,6 @@ server.on('error', (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-    console.log(`\n  Zyro Dev Server running at http://localhost:${PORT}\n`);
+    const displayHost = (HOST === '0.0.0.0' || HOST === '::') ? 'localhost' : HOST;
+    console.log(`\n  Zyro Dev Server running at http://${displayHost}:${PORT}\n`);
 });
