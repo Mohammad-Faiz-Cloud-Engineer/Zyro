@@ -9,7 +9,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 8080;
+const PORT = process.env.PORT || 7860;
 const API_TARGET = 'costum-boomber-api.vercel.app';
 
 const MIME_TYPES = {

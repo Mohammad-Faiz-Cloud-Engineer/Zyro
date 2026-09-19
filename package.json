@@ -1,0 +1,11 @@
+{
+  "name": "zyro-sms-bomber",
+  "version": "1.0.0",
+  "description": "Zyro SMS Bomber UI and local proxy",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "Mohammad Faiz",
+  "license": "BSD-2-Clause"
+}
