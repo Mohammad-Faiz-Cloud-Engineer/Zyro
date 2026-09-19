@@ -46,7 +46,10 @@ self.addEventListener('fetch', (event) => {
             })
         );
     } else {
-        // For all other requests (API, CSS, JS), just fetch normally (network only)
-        event.respondWith(fetch(event.request));
+        // OPTIMIZATION: For all non-HTML requests (API, CSS, JS), do NOT call event.respondWith().
+        // By simply returning, we let the browser handle the request natively.
+        // This avoids the overhead of proxying every single network request through the Service Worker,
+        // reducing latency on the /api calls and static assets.
+        return;
     }
 });
