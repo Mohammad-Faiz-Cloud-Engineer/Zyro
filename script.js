@@ -12,42 +12,9 @@ const HEALTH_TIMEOUT_MS = 10000;
 const DISPATCH_TIMEOUT_MS = 180000;
 const MAX_TOAST_MS = 3500;
 
-function isPrivateOrLocalHost(hostname) {
-    if (!hostname) return false;
-    const h = hostname.toLowerCase();
-    if (h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '[::1]') return true;
-    if (h.endsWith('.local')) return true;
-    const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-    if (!m) return false;
-    const a = Number(m[1]);
-    const b = Number(m[2]);
-    if (a === 10 || a === 127) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    return false;
-}
-
-function resolveApiBase() {
-    const host = window.location.hostname;
-    const proto = window.location.protocol;
-    const PUBLIC_API = 'https://costum-boomber-api.vercel.app';
-
-    // No helper server: opened as a file, or static GitHub Pages.
-    if (proto === 'file:' || /\.github\.io$/i.test(host)) {
-        return PUBLIC_API;
-    }
-
-    // Helper server is in front of the page: local, LAN, or Hugging Face Docker.
-    // This is the production bug: *.hf.space used to skip the proxy and call Vercel from the browser.
-    if (isPrivateOrLocalHost(host) || /\.hf\.space$/i.test(host)) {
-        return '';
-    }
-
-    // Anything else (custom Pages domain, CDN static host) has no /api proxy — same as before.
-    return PUBLIC_API;
-}
-
-const API_BASE_URL = resolveApiBase();
+// Same-origin only. The Vercel gateway sends no Access-Control-Allow-Origin,
+// so a browser call to it can never be read. server.js (local / Docker / HF) proxies /api.
+const API_BASE_URL = '';
 
 function loadHistory() {
     try {
@@ -141,10 +108,20 @@ document.addEventListener('DOMContentLoaded', () => {
     scheduleHealthCheck(true);
 });
 
-window.addEventListener('beforeunload', () => {
-    if (state.healthTimer) clearTimeout(state.healthTimer);
-    if (state.healthAbort) state.healthAbort.abort();
-    if (state.abortController) state.abortController.abort();
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        pauseHealthLoop();
+        return;
+    }
+    scheduleHealthCheck(true);
+});
+
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) scheduleHealthCheck(true);
+});
+
+window.addEventListener('pagehide', () => {
+    pauseHealthLoop();
     closePdfPreview();
 });
 
@@ -305,14 +282,26 @@ async function fetchWithTimeout(url, options = {}, timeoutMs) {
     }
 }
 
-function scheduleHealthCheck(immediate) {
+let healthLoopId = 0;
+let healthGeneration = 0;
+
+function pauseHealthLoop() {
+    healthLoopId += 1;
     if (state.healthTimer) {
         clearTimeout(state.healthTimer);
         state.healthTimer = null;
     }
+    if (state.healthAbort) state.healthAbort.abort();
+}
+
+function scheduleHealthCheck(immediate) {
+    pauseHealthLoop();
+    const myId = healthLoopId;
 
     const run = () => {
+        if (myId !== healthLoopId) return;
         fetchSystemHealth().finally(() => {
+            if (myId !== healthLoopId) return;
             state.healthTimer = setTimeout(run, HEALTH_INTERVAL_MS);
         });
     };
@@ -321,9 +310,9 @@ function scheduleHealthCheck(immediate) {
     else state.healthTimer = setTimeout(run, HEALTH_INTERVAL_MS);
 }
 
-let healthGeneration = 0;
-
 async function fetchSystemHealth() {
+    if (document.hidden || state.isExecuting) return;
+
     const generation = ++healthGeneration;
     if (state.healthAbort) state.healthAbort.abort();
     state.healthAbort = new AbortController();
@@ -340,8 +329,9 @@ async function fetchSystemHealth() {
         let data;
         try {
             data = await res.json();
-        } catch {
+        } catch (jsonErr) {
             if (generation !== healthGeneration) return;
+            if (jsonErr && jsonErr.name === 'AbortError') return;
             setOfflineStatus();
             return;
         }
@@ -357,8 +347,13 @@ async function fetchSystemHealth() {
         } else {
             setOfflineStatus();
         }
-    } catch {
+    } catch (err) {
         if (generation !== healthGeneration) return;
+        // pauseHealthLoop() / a newer poll aborts the parent signal. Timeouts abort
+        // only the child controller — those should still surface as offline.
+        if (err && err.name === 'AbortError' && state.healthAbort && state.healthAbort.signal.aborted) {
+            return;
+        }
         setOfflineStatus();
     }
 }
@@ -575,6 +570,8 @@ function setExecutingUI(isExecuting) {
         btn.disabled = isExecuting;
     });
     if (isExecuting) {
+        // Do not let a health probe share the proxy/upstream with a 180s dispatch.
+        if (state.healthAbort) state.healthAbort.abort();
         els.btnLaunch.disabled = true;
         els.launchSpinner.classList.remove('hidden');
         els.launchBtnText.textContent = 'Processing Payload...';

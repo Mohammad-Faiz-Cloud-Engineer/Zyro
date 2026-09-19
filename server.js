@@ -57,16 +57,29 @@ function corsPreflight(res) {
     res.end();
 }
 
+function parseRequestUrl(requestUrl) {
+    try {
+        return new URL(requestUrl, 'http://127.0.0.1');
+    } catch {
+        return null;
+    }
+}
+
+function isApiPath(pathname) {
+    return pathname === '/api' || pathname.startsWith('/api/');
+}
+
 const server = http.createServer((req, res) => {
     const requestUrl = req.url || '/';
+    const parsedUrl = parseRequestUrl(requestUrl);
 
     if (req.method === 'OPTIONS') {
         corsPreflight(res);
         return;
     }
 
-    // ── CORS Proxy: Forward /api* requests to Vercel ──
-    if (requestUrl.startsWith('/api')) {
+    // ── CORS Proxy: Forward /api and /api/* to Vercel (not /apixxx) ──
+    if (parsedUrl && isApiPath(parsedUrl.pathname)) {
         if (req.method !== 'GET' && req.method !== 'HEAD') {
             sendJson(res, 405, { ok: false, error: 'Method not allowed' }, { Allow: 'GET, HEAD, OPTIONS' });
             return;
@@ -74,21 +87,26 @@ const server = http.createServer((req, res) => {
 
         const options = {
             hostname: API_TARGET,
-            path: requestUrl,
+            path: parsedUrl.pathname + parsedUrl.search,
             method: req.method,
             headers: {
                 'Accept': 'application/json',
+                'Accept-Encoding': 'identity',
                 'User-Agent': 'Zyro-DevProxy/1.0',
             },
         };
 
         let settled = false;
+        const abortProxy = () => {
+            if (!settled && !res.writableEnded) proxyReq.destroy();
+        };
+
         const proxyReq = https.request(options, (proxyRes) => {
             const chunks = [];
             proxyRes.on('data', (chunk) => chunks.push(chunk));
             proxyRes.on('end', () => {
                 settled = true;
-                req.removeListener('close', abortProxy);
+                res.removeListener('close', abortProxy);
                 const body = Buffer.concat(chunks);
                 const headers = {
                     'Content-Type': proxyRes.headers['content-type'] || 'application/json; charset=utf-8',
@@ -107,17 +125,15 @@ const server = http.createServer((req, res) => {
             });
         });
 
-        const abortProxy = () => {
-            if (!settled) proxyReq.destroy();
-        };
-        req.on('close', abortProxy);
+        // Client gone before we finished — not req 'close', which also fires after a normal GET.
+        res.on('close', abortProxy);
 
         proxyReq.setTimeout(PROXY_TIMEOUT_MS, () => {
             proxyReq.destroy(new Error('Upstream timeout'));
         });
 
         proxyReq.on('error', (err) => {
-            req.removeListener('close', abortProxy);
+            res.removeListener('close', abortProxy);
             if (settled || res.headersSent || res.writableEnded) return;
             settled = true;
             sendJson(res, 502, { ok: false, error: err.message || 'Bad gateway' });

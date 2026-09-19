@@ -1,5 +1,3 @@
-const CACHE_NAME = 'zyro-pwa-v1';
-
 self.addEventListener('install', (event) => {
     self.skipWaiting();
     // EXPLICIT DECISION: We do NOT pre-cache HTML/CSS/JS here.
@@ -8,16 +6,19 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-    event.waitUntil(clients.claim());
+    event.waitUntil(
+        caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).then(() => clients.claim())
+    );
 });
 
 self.addEventListener('fetch', (event) => {
-    // PWA requires a fetch event listener to be installable.
-    // We use a strictly Network-Only strategy. We pass the request directly to the network.
-    // If the network fails (offline), we return a fallback offline HTML page.
-    if (event.request.mode === 'navigate' || (event.request.method === 'GET' && (event.request.headers.get('accept') || '').includes('text/html'))) {
+    // PWA installability needs a fetch listener. Intercept document navigations
+    // only. fetch() to /api uses Accept: */*, so the old text/html Accept match
+    // did not wrap API calls; it could still wrap other HTML GETs and apply the
+    // default HTTP cache, which fights this app's no-store HTML policy.
+    if (event.request.mode === 'navigate') {
         event.respondWith(
-            fetch(event.request).catch(() => {
+            fetch(event.request, { cache: 'no-store' }).catch(() => {
                 return new Response(
                     `<!DOCTYPE html>
 <html lang="en">
