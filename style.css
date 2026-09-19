@@ -65,6 +65,11 @@
 }
 
 html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-subtle) transparent;
+}
+
+html {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--bg-base);
     color: var(--text-main);
@@ -364,6 +369,8 @@ body {
 .text-input:focus, .textarea-input:focus {
     border-color: var(--border-focus);
     box-shadow: var(--focus-ring);
+    outline: 2px solid transparent;
+    outline-offset: 2px;
 }
 
 .textarea-input {
@@ -387,6 +394,8 @@ body {
 .input-phone-group:focus-within {
     border-color: var(--border-focus);
     box-shadow: var(--focus-ring);
+    outline: 2px solid transparent;
+    outline-offset: 2px;
 }
 
 .country-code-wrapper {
@@ -509,6 +518,10 @@ body {
     outline: none;
     cursor: pointer;
 }
+.custom-range:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+}
 
 .custom-range::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -523,6 +536,20 @@ body {
     transition: transform 0.1s ease;
 }
 .custom-range::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+
+.custom-range::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary);
+    border: 2px solid var(--bg-card);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+.custom-range::-moz-range-thumb:hover {
     transform: scale(1.15);
 }
 

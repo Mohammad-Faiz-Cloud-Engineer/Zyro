@@ -3,7 +3,8 @@
    Deep Checked & Hardened against logic errors and DOM leaks.
    ═══════════════════════════════════════════════════════════════════ */
 
-const API_BASE_URL = 'https://costum-boomber-api.vercel.app';
+const isLocal = ['localhost', '127.0.0.1'].includes(window.location.hostname) || window.location.hostname.startsWith('192.168.');
+const API_BASE_URL = isLocal ? '' : 'https://costum-boomber-api.vercel.app';
 
 // ── Safe LocalStorage Parsing ──
 let initialHistory = [];
@@ -82,8 +83,12 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHistoryTable();
     syncCountChips(els.countSlider.value); // Initialize slider fill visually
 
-    // Auto health check every 25s
-    setInterval(fetchSystemHealth, 25000);
+    function scheduleHealthCheck() {
+        fetchSystemHealth().finally(() => {
+            setTimeout(scheduleHealthCheck, 25000);
+        });
+    }
+    scheduleHealthCheck();
 });
 
 // ── Event Listeners Setup ──
@@ -291,7 +296,7 @@ async function handleFormSubmit(e) {
 
             // Save to Session History
             saveSessionHistory({
-                timestamp: new Date().toLocaleTimeString(),
+                timestamp: new Date().toLocaleTimeString('en-US', { hour12: true }),
                 target: `+${number}`,
                 message: msg || 'Default Payload',
                 requested: count,
@@ -305,8 +310,9 @@ async function handleFormSubmit(e) {
 
         } else {
             updateProgress(100, 'Failed');
-            appendLog(`[ERROR] Server responded with error: ${data.msg || 'Dispatch error'}`, 'error');
-            showToast('Dispatch failed on server', 'error');
+            const errorReason = data.error || data.msg || 'Dispatch error';
+            appendLog(`[ERROR] Server responded with error: ${errorReason}`, 'error');
+            showToast(`Dispatch failed: ${errorReason}`, 'error');
         }
 
     } catch (err) {
@@ -369,7 +375,7 @@ function appendLog(message, type = 'info') {
     const line = document.createElement('div');
     line.className = `log-line ${type}`;
 
-    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const time = new Date().toLocaleTimeString('en-US', { hour12: true });
     line.innerHTML = `<span class="log-time">[${time}]</span><span class="log-msg">${escapeHtml(message)}</span>`;
 
     els.terminalLog.appendChild(line);
@@ -406,14 +412,14 @@ function renderHistoryTable() {
     els.historyTableBody.innerHTML = state.history.map((row, idx) => `
         <tr>
             <td style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-dim);">${state.history.length - idx}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;">${row.timestamp}</td>
-            <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${row.target}</td>
-            <td title="${escapeHtml(row.message)}">${escapeHtml(row.message.length > 22 ? row.message.substring(0, 22) + '...' : row.message)}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;">${row.requested}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;" class="text-success">${row.sent}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;" class="text-danger">${row.failed}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;">${row.latency}</td>
-            <td><span class="badge-status ${row.status}">${row.status}</span></td>
+            <td style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.timestamp))}</td>
+            <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${escapeHtml(String(row.target))}</td>
+            <td title="${escapeHtml(row.message || '')}">${escapeHtml((row.message || '').length > 22 ? (row.message || '').substring(0, 22) + '...' : (row.message || ''))}</td>
+            <td style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.requested))}</td>
+            <td style="font-family: 'JetBrains Mono', monospace;" class="text-success">${escapeHtml(String(row.sent))}</td>
+            <td style="font-family: 'JetBrains Mono', monospace;" class="text-danger">${escapeHtml(String(row.failed))}</td>
+            <td style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.latency))}</td>
+            <td><span class="badge-status ${escapeHtml(String(row.status))}">${escapeHtml(String(row.status))}</span></td>
         </tr>
     `).join('');
 }
@@ -465,5 +471,5 @@ function showToast(message, type = 'info') {
 }
 
 function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

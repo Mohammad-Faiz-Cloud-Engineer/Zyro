@@ -17,15 +17,19 @@ Enter a phone number, pick how many messages to send, optionally write a custom 
 
 ## Setup
 
-No build step. No dependencies. Just three files:
+No build step. No heavy dependencies. Four core files:
 
 ```text
 index.html
 style.css
 script.js
+server.js
 ```
 
-Open `index.html` in a browser. Done.
+**For Local Development:** 
+Because of CORS restrictions on the API, run the included local proxy server:
+`node server.js`
+Then open `http://localhost:8080` in your browser.
 
 ## Tech
 
