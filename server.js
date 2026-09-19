@@ -139,7 +139,7 @@ const server = http.createServer((req, res) => {
     const ext = path.extname(filePath);
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-    fs.stat(filePath, (statErr, stats) => { /* codeql[js/path-injection] filePath validated by isInsideRoot() above */
+    fs.stat(filePath, (statErr, stats) => {
         if (statErr || !stats.isFile()) {
             res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
             res.end('404 Not Found');
@@ -152,7 +152,7 @@ const server = http.createServer((req, res) => {
             return;
         }
 
-        fs.readFile(filePath, (err, data) => { /* codeql[js/path-injection] filePath validated by isInsideRoot() above */
+        fs.readFile(filePath, (err, data) => {
             if (err) {
                 res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
                 res.end('404 Not Found');
