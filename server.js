@@ -169,8 +169,16 @@ const server = http.createServer((req, res) => {
             return;
         }
 
+        const staticHeaders = {
+            'Content-Type': contentType,
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Surrogate-Control': 'no-store'
+        };
+
         if (req.method === 'HEAD') {
-            res.writeHead(200, { 'Content-Type': contentType, 'Content-Length': stats.size });
+            res.writeHead(200, { ...staticHeaders, 'Content-Length': stats.size });
             res.end();
             return;
         }
@@ -181,7 +189,7 @@ const server = http.createServer((req, res) => {
                 res.end('404 Not Found');
                 return;
             }
-            res.writeHead(200, { 'Content-Type': contentType });
+            res.writeHead(200, staticHeaders);
             res.end(data);
         });
     });
