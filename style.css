@@ -979,6 +979,10 @@ body {
     to { opacity: 1; transform: translateY(0); }
 }
 
+.td-mono { font-family: 'JetBrains Mono', monospace; }
+.td-dim { font-weight: 700; color: var(--text-dim); }
+.td-strong { font-weight: 600; }
+
 .hidden { display: none !important; }
 
 /* ── Responsive Design ── */

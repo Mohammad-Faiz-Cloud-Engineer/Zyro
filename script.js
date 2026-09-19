@@ -642,12 +642,9 @@ function renderHistoryTable() {
         cells.forEach(([label, text, extra]) => {
             const td = document.createElement('td');
             td.setAttribute('data-label', label);
-            if (extra.includes('mono')) td.style.fontFamily = "'JetBrains Mono', monospace";
-            if (extra.includes('dim')) {
-                td.style.fontWeight = '700';
-                td.style.color = 'var(--text-dim)';
-            }
-            if (extra.includes('strong')) td.style.fontWeight = '600';
+            if (extra.includes('mono')) td.classList.add('td-mono');
+            if (extra.includes('dim')) td.classList.add('td-dim');
+            if (extra.includes('strong')) td.classList.add('td-strong');
             if (extra.includes('text-success')) td.classList.add('text-success');
             if (extra.includes('text-danger')) td.classList.add('text-danger');
             td.textContent = text;
