@@ -15,7 +15,7 @@ self.addEventListener('fetch', (event) => {
     // PWA requires a fetch event listener to be installable.
     // We use a strictly Network-Only strategy. We pass the request directly to the network.
     // If the network fails (offline), we return a fallback offline HTML page.
-    if (event.request.mode === 'navigate' || (event.request.method === 'GET' && event.request.headers.get('accept').includes('text/html'))) {
+    if (event.request.mode === 'navigate' || (event.request.method === 'GET' && (event.request.headers.get('accept') || '').includes('text/html'))) {
         event.respondWith(
             fetch(event.request).catch(() => {
                 return new Response(
