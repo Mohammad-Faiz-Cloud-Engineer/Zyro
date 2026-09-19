@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M13 2L3 14h9l-1 8 10-12h-9l1-8z'/></svg>">
+    <title>Zyro - SMS Bomber</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Cache-busting query parameter ensures the new light-theme terminal CSS is loaded immediately -->
+    <link rel="stylesheet" href="style.css?v=3.0">
+</head>
+<body>
+
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-container">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <span class="brand-name">Zyro</span>
+                </div>
+            </div>
+
+            <div class="nav-actions">
+                <div class="api-status-pill" id="apiStatusPill" title="Server Status">
+                    <span class="pulse-dot"></span>
+                    <span class="status-label" id="apiStatusText">Connecting...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- App Container -->
+    <div class="app-layout">
+
+        <!-- Realtime System Banner Stats -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Active Devices</span>
+                    <div class="metric-icon blue">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    </div>
+                </div>
+                <div class="metric-value-row">
+                    <span class="metric-value" id="valDevices">-</span>
+                    <span class="metric-subtext">RTDB Pool</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Databases</span>
+                    <div class="metric-icon purple">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+                    </div>
+                </div>
+                <div class="metric-value-row">
+                    <span class="metric-value" id="valDatabases">-</span>
+                    <span class="metric-subtext">Nodes Sync</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Max Request Limit</span>
+                    <div class="metric-icon green">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                </div>
+                <div class="metric-value-row">
+                    <span class="metric-value" id="valMaxCount">1000</span>
+                    <span class="metric-subtext">Requests/Batch</span>
+                </div>
+            </div>
+
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Parallel Workers</span>
+                    <div class="metric-icon amber">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </div>
+                </div>
+                <div class="metric-value-row">
+                    <span class="metric-value" id="valMaxWorkers">40</span>
+                    <span class="metric-subtext">Concurrency</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Workspace (2 Columns) -->
+        <div class="workspace-grid">
+
+            <!-- Control Config Panel -->
+            <main class="card config-card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">SMS Bomber</h2>
+                        <p class="card-subtitle">Configure target number, message, and bombing count</p>
+                    </div>
+                </div>
+
+                <form id="attackForm" class="control-form" autocomplete="off">
+
+                    <!-- Target Number Field -->
+                    <div class="field-group">
+                        <label for="phoneNumber" class="field-label">
+                            Target Phone Number
+                            <span class="required-star">*</span>
+                        </label>
+                        <div class="input-phone-group">
+                            <div class="country-code-wrapper">
+                                <span class="plus-sign">+</span>
+                                <input 
+                                    type="tel" 
+                                    id="countryCode" 
+                                    class="country-code-input" 
+                                    value="91" 
+                                    maxlength="3"
+                                    aria-label="Country Code"
+                                    title="Country Code"
+                                    required
+                                >
+                            </div>
+                            <input 
+                                type="tel" 
+                                id="phoneNumber" 
+                                class="text-input" 
+                                placeholder="Enter mobile number" 
+                                maxlength="12"
+                                required
+                            >
+                        </div>
+                        <p class="field-help">Target must be a valid 10-15 digit mobile number</p>
+                    </div>
+
+                    <!-- Custom Message Field -->
+                    <div class="field-group">
+                        <div class="field-label-row">
+                            <label for="customMessage" class="field-label">Custom Payload Message</label>
+                            <span class="char-badge" id="charCounter">0 / 2000</span>
+                        </div>
+                        <textarea 
+                            id="customMessage" 
+                            class="textarea-input" 
+                            rows="3" 
+                            placeholder="Type a custom message (e.g., Hello, wake up!). Leave empty for standard system payload..."
+                            maxlength="2000"
+                        ></textarea>
+                        <div class="quick-messages">
+                            <button type="button" class="chip-btn msg-chip" data-msg="OTP verification code: 849201">OTP Mock</button>
+                            <button type="button" class="chip-btn msg-chip" data-msg="Important alert from your service provider.">Alert Msg</button>
+                            <button type="button" class="chip-btn msg-chip" data-msg="Hello! Hope you are having a nice day.">Friendly</button>
+                            <button type="button" class="chip-btn chip-btn-clear" id="clearMsgBtn">Clear</button>
+                        </div>
+                    </div>
+
+                    <!-- Dispatch Count Slider & Chips -->
+                    <div class="field-group">
+                        <div class="field-label-row">
+                            <label for="countSlider" class="field-label">Request Quantity (Count)</label>
+                            <span class="count-value-display" id="countDisplay">10</span>
+                        </div>
+                        
+                        <div class="slider-wrapper">
+                            <input type="range" id="countSlider" class="custom-range" min="1" max="1000" step="1" value="10">
+                            <div class="range-bounds">
+                                <span>1</span>
+                                <span>500</span>
+                                <span>1000</span>
+                            </div>
+                        </div>
+
+                        <div class="preset-chips">
+                            <button type="button" class="chip-btn count-chip" data-val="5">5</button>
+                            <button type="button" class="chip-btn count-chip active" data-val="10">10</button>
+                            <button type="button" class="chip-btn count-chip" data-val="25">25</button>
+                            <button type="button" class="chip-btn count-chip" data-val="50">50</button>
+                            <button type="button" class="chip-btn count-chip" data-val="100">100</button>
+                            <button type="button" class="chip-btn count-chip" data-val="250">250</button>
+                            <button type="button" class="chip-btn count-chip" data-val="500">500</button>
+                            <button type="button" class="chip-btn count-chip" data-val="1000">1000 MAX</button>
+                        </div>
+                    </div>
+
+
+
+                    <!-- Form Buttons -->
+                    <div class="action-row">
+                        <button type="submit" id="btnLaunch" class="primary-btn">
+                            <span class="btn-spinner hidden" id="launchSpinner"></span>
+                            <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                            <span id="launchBtnText">Dispatch Payload</span>
+                        </button>
+
+                        <button type="button" id="btnAbort" class="secondary-btn danger-btn hidden">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>
+                            <span>Abort Session</span>
+                        </button>
+                    </div>
+
+                </form>
+            </main>
+
+            <!-- Telemetry & Live Monitor Panel -->
+            <aside class="card telemetry-card">
+                <div class="card-header">
+                    <div>
+                        <h2 class="card-title">Live Telemetry</h2>
+                        <p class="card-subtitle">Real-time status metrics and execution stream</p>
+                    </div>
+                    <button class="icon-btn-text" id="btnClearTerminal" title="Clear Log">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        <span>Clear</span>
+                    </button>
+                </div>
+
+                <!-- Live Execution Progress Card -->
+                <div class="progress-box">
+                    <div class="progress-header">
+                        <span class="progress-title" id="progressStateTitle">Ready</span>
+                        <span class="progress-percentage" id="progressPctText">0%</span>
+                    </div>
+
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progressBarFill"></div>
+                    </div>
+
+                    <div class="stats-mini-grid">
+                        <div class="mini-stat">
+                            <span class="mini-stat-label">Sent</span>
+                            <span class="mini-stat-val text-success" id="statSent">0</span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="mini-stat-label">Failed</span>
+                            <span class="mini-stat-val text-danger" id="statFailed">0</span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="mini-stat-label">Attempts</span>
+                            <span class="mini-stat-val" id="statAttempts">0</span>
+                        </div>
+                        <div class="mini-stat">
+                            <span class="mini-stat-label">Time</span>
+                            <span class="mini-stat-val" id="statTime">0.0s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Terminal Feed -->
+                <div class="terminal-container">
+                    <div class="terminal-bar">
+                        <div class="terminal-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
+                        <span class="terminal-title">api-stream.log</span>
+                    </div>
+
+                    <div class="terminal-body" id="terminalLog">
+                        <div class="log-line info">
+                            <span class="log-time">[SYSTEM]</span>
+                            <span class="log-msg">Zyro ready. Awaiting target...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Last Payload Data Breakdown -->
+                <div class="payload-breakdown hidden" id="payloadBreakdown">
+                    <div class="breakdown-title">Session Summary Payload</div>
+                    <div class="breakdown-grid">
+                        <div class="bd-item">
+                            <span class="bd-key">Shotgun/Req:</span>
+                            <span class="bd-val" id="bdShotgun">-</span>
+                        </div>
+                        <div class="bd-item">
+                            <span class="bd-key">Retry/Req:</span>
+                            <span class="bd-val" id="bdRetry">-</span>
+                        </div>
+                        <div class="bd-item">
+                            <span class="bd-key">Available Devices:</span>
+                            <span class="bd-val" id="bdDevices">-</span>
+                        </div>
+                        <div class="bd-item">
+                            <span class="bd-key">Elapsed Sec:</span>
+                            <span class="bd-val" id="bdElapsed">-</span>
+                        </div>
+                    </div>
+                    <div class="bd-note hidden" id="bdNote"></div>
+                </div>
+
+            </aside>
+
+        </div>
+
+        <!-- Mission History & Audit Logs Table -->
+        <section class="card history-card">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title">Mission Audit History</h2>
+                    <p class="card-subtitle">Stored history of local sessions in this browser</p>
+                </div>
+                <div class="history-actions">
+                    <button class="secondary-btn btn-sm" id="btnExportHistory">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Export JSON
+                    </button>
+                    <button class="secondary-btn btn-sm text-danger" id="btnClearHistory">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        Clear History
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Target</th>
+                            <th>Message</th>
+                            <th>Requested</th>
+                            <th>Sent</th>
+                            <th>Failed</th>
+                            <th>Latency</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr class="empty-row">
+                            <td colspan="9">No previous dispatch missions recorded in this session.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div class="toast-stack" id="toastStack"></div>
+
+    <!-- Cache-busting query parameter for JS -->
+    <script src="script.js?v=3.0"></script>
+</body>
+</html>
