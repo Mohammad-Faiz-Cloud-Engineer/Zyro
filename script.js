@@ -71,6 +71,11 @@ const els = {
 
     // History Table
     historyTableBody: document.getElementById('historyTableBody'),
+    exportDropdown: document.getElementById('exportDropdown'),
+    btnExportMenu: document.getElementById('btnExportMenu'),
+    exportMenu: document.getElementById('exportMenu'),
+    btnExportCSV: document.getElementById('btnExportCSV'),
+    btnExportPDF: document.getElementById('btnExportPDF'),
     btnExportHistory: document.getElementById('btnExportHistory'),
     btnClearHistory: document.getElementById('btnClearHistory'),
     toastStack: document.getElementById('toastStack')
@@ -157,8 +162,21 @@ function setupEventListeners() {
         appendLog('Console buffer cleared.', 'info');
     });
 
-    // History Table Actions
-    els.btnExportHistory.addEventListener('click', exportHistoryData);
+        // History Table Actions
+    els.btnExportMenu.addEventListener('click', (e) => {
+        e.stopPropagation();
+        els.exportMenu.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (els.exportDropdown && !els.exportDropdown.contains(e.target)) {
+            els.exportMenu.classList.add('hidden');
+        }
+    });
+
+    els.btnExportCSV.addEventListener('click', () => { els.exportMenu.classList.add('hidden'); exportHistoryCSV(); });
+    els.btnExportPDF.addEventListener('click', () => { els.exportMenu.classList.add('hidden'); exportHistoryPDF(); });
+    els.btnExportHistory.addEventListener('click', () => { els.exportMenu.classList.add('hidden'); exportHistoryData(); });
     els.btnClearHistory.addEventListener('click', clearHistoryData);
 }
 
@@ -297,7 +315,7 @@ async function handleFormSubmit(e) {
             // Save to Session History
             saveSessionHistory({
                 timestamp: new Date().toLocaleTimeString('en-US', { hour12: true }),
-                target: `+${number}`,
+                target: `+${rawCountry.replace(/\D/g, '')} ${rawPhone.replace(/\D/g, '')}`,
                 message: msg || 'Default Payload',
                 requested: count,
                 sent: sent,
@@ -409,11 +427,12 @@ function renderHistoryTable() {
         return;
     }
 
-    els.historyTableBody.innerHTML = state.history.map((row, idx) => `
+    const chronHistory = [...state.history].reverse();
+    els.historyTableBody.innerHTML = chronHistory.map((row, idx) => `
         <tr>
-            <td data-label="#" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-dim);">${state.history.length - idx}</td>
+            <td data-label="#" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-dim);">${idx + 1}</td>
             <td data-label="Timestamp" style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.timestamp))}</td>
-            <td data-label="Target" style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${escapeHtml(String(row.target))}</td>
+            <td data-label="Target" style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${escapeHtml(formatTarget(row.target))}</td>
             <td data-label="Message" title="${escapeHtml(row.message || '')}">${escapeHtml((row.message || '').length > 22 ? (row.message || '').substring(0, 22) + '...' : (row.message || ''))}</td>
             <td data-label="Requested" style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.requested))}</td>
             <td data-label="Sent" style="font-family: 'JetBrains Mono', monospace;" class="text-success">${escapeHtml(String(row.sent))}</td>
@@ -425,6 +444,214 @@ function renderHistoryTable() {
 }
 
 // ── Utility ──
+function exportHistoryCSV() {
+    if (!state.history.length) {
+        showToast('No history to export', 'error');
+        return;
+    }
+    const headers = ['#', 'Timestamp', 'Target', 'Message', 'Requested', 'Sent', 'Failed', 'Latency', 'Status'];
+    const rows = [...state.history].reverse().map((row, idx) => [
+        idx + 1,
+        `"${row.timestamp}"`,
+        `"${formatTarget(row.target)}"`,
+        `"${row.message.replace(/"/g, '""')}"`,
+        row.requested,
+        row.sent,
+        row.failed,
+        `"${row.latency}"`,
+        `"${row.status}"`
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zyro_mission_audit_${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Exported CSV successfully', 'success');
+}
+
+function exportHistoryPDF() {
+    if (!state.history.length) {
+        showToast('No history to export', 'error');
+        return;
+    }
+    if (!window.jspdf) {
+        showToast('PDF library is loading, please try again in a moment...', 'error');
+        return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 14;
+
+    // ── Theme colors (platform slate/indigo only) ──
+    const ink      = [15, 23, 42];    // --text-main  #0f172a
+    const muted    = [71, 85, 105];   // --text-muted #475569
+    const dim      = [100, 116, 139]; // --text-dim   #64748b
+    const primary  = [79, 70, 229];   // --primary    #4f46e5
+    const border   = [226, 232, 240]; // --border     #e2e8f0
+    const stripeBg = [248, 250, 252]; // --bg-base    #f8fafc
+
+    // ── Header bar ──
+    doc.setFillColor(...primary);
+    doc.rect(0, 0, pageW, 18, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.text('ZYRO', margin, 12);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Mission Audit History', margin + 24, 12);
+    doc.setFontSize(8);
+    doc.text(`Generated ${new Date().toLocaleString()}`, pageW - margin, 12, { align: 'right' });
+
+    // ── Thin accent line under header ──
+    doc.setDrawColor(...border);
+    doc.setLineWidth(0.3);
+    doc.line(margin, 22, pageW - margin, 22);
+
+    // ── Summary stats row ──
+    const totalMissions = state.history.length;
+    const totalSent = state.history.reduce((s, r) => s + (Number(r.sent) || 0), 0);
+    const totalFailed = state.history.reduce((s, r) => s + (Number(r.failed) || 0), 0);
+    const totalRequested = state.history.reduce((s, r) => s + (Number(r.requested) || 0), 0);
+
+    doc.setFontSize(8);
+    doc.setTextColor(...dim);
+    doc.setFont('helvetica', 'normal');
+    const statsY = 27;
+    doc.text(`Total Missions: ${totalMissions}`, margin, statsY);
+    doc.text(`Requested: ${totalRequested}`, margin + 50, statsY);
+    doc.text(`Sent: ${totalSent}`, margin + 90, statsY);
+    doc.text(`Failed: ${totalFailed}`, margin + 120, statsY);
+
+    // ── Table ──
+    const tableColumn = ['#', 'Timestamp', 'Target', 'Message', 'Requested', 'Sent', 'Failed', 'Latency', 'Status'];
+    const tableRows = [...state.history].reverse().map((row, idx) => [
+        idx + 1,
+        row.timestamp,
+        formatTarget(row.target),
+        row.message || '',
+        row.requested,
+        row.sent,
+        row.failed,
+        row.latency,
+        row.status
+    ]);
+
+    doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: 32,
+        margin: { left: margin, right: margin },
+        theme: 'plain',
+        styles: {
+            fontSize: 7.5,
+            cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
+            textColor: ink,
+            lineColor: border,
+            lineWidth: 0.2,
+            font: 'helvetica',
+            overflow: 'linebreak'
+        },
+        headStyles: {
+            fillColor: [241, 245, 249],   // --bg-card-subtle #f1f5f9
+            textColor: muted,
+            fontStyle: 'bold',
+            fontSize: 7,
+            halign: 'left'
+        },
+        bodyStyles: {
+            halign: 'left'
+        },
+        alternateRowStyles: {
+            fillColor: stripeBg
+        },
+        columnStyles: {
+            0: { halign: 'center' },
+            2: { fontStyle: 'bold' },
+            4: { halign: 'center' },
+            5: { halign: 'center' },
+            6: { halign: 'center' },
+            7: { halign: 'center' },
+            8: { halign: 'center' }
+        },
+        didParseCell: function(data) {
+            // Color the Status column text based on value
+            if (data.column.index === 8 && data.section === 'body') {
+                const val = (data.cell.raw || '').toString().toLowerCase();
+                if (val === 'completed' || val === 'success') {
+                    data.cell.styles.textColor = [5, 150, 105]; // --success
+                } else if (val === 'failed' || val === 'error') {
+                    data.cell.styles.textColor = [220, 38, 38]; // --danger
+                } else if (val === 'partial') {
+                    data.cell.styles.textColor = [217, 119, 6]; // --warning
+                }
+            }
+        },
+        didDrawPage: function(data) {
+            // Footer on every page
+            const pg = doc.internal.getNumberOfPages();
+            doc.setFontSize(7);
+            doc.setTextColor(...dim);
+            doc.text(`Page ${data.pageNumber} of ${pg}`, pageW - margin, pageH - 8, { align: 'right' });
+            doc.setDrawColor(...border);
+            doc.setLineWidth(0.2);
+            doc.line(margin, pageH - 12, pageW - margin, pageH - 12);
+            doc.text('Zyro Dispatch System', margin, pageH - 8);
+        }
+    });
+
+    // ── Preview overlay ──
+    const blobUrl = doc.output('bloburl');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'pdfPreviewOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;animation:fadeIn 0.2s ease;';
+
+    const toolbar = document.createElement('div');
+    toolbar.style.cssText = 'display:flex;gap:10px;margin-bottom:12px;';
+
+    const btnDownload = document.createElement('button');
+    btnDownload.textContent = '\u2B07 Download PDF';
+    btnDownload.style.cssText = 'padding:10px 20px;border:none;border-radius:8px;background:#4f46e5;color:#fff;font-weight:600;font-size:0.95rem;cursor:pointer;';
+    btnDownload.addEventListener('click', () => {
+        doc.save(`zyro_mission_audit_${Date.now()}.pdf`);
+        showToast('PDF downloaded successfully', 'success');
+    });
+
+    const btnClose = document.createElement('button');
+    btnClose.textContent = '\u2715 Close';
+    btnClose.style.cssText = 'padding:10px 20px;border:1px solid rgba(255,255,255,0.3);border-radius:8px;background:transparent;color:#fff;font-weight:600;font-size:0.95rem;cursor:pointer;';
+    btnClose.addEventListener('click', () => {
+        URL.revokeObjectURL(blobUrl);
+        overlay.remove();
+    });
+
+    toolbar.appendChild(btnDownload);
+    toolbar.appendChild(btnClose);
+
+    const iframe = document.createElement('iframe');
+    iframe.src = blobUrl;
+    iframe.style.cssText = 'width:100%;max-width:1100px;height:82vh;border:none;border-radius:12px;background:#fff;';
+
+    overlay.appendChild(toolbar);
+    overlay.appendChild(iframe);
+    document.body.appendChild(overlay);
+
+    const onKey = (e) => {
+        if (e.key === 'Escape') {
+            URL.revokeObjectURL(blobUrl);
+            overlay.remove();
+            document.removeEventListener('keydown', onKey);
+        }
+    };
+    document.addEventListener('keydown', onKey);
+}
+
 function exportHistoryData() {
     if (state.history.length === 0) {
         showToast('No history available to export', 'info');
@@ -472,4 +699,16 @@ function showToast(message, type = 'info') {
 
 function escapeHtml(str) {
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+
+
+// ── Target Formatter ──
+function formatTarget(targetStr) {
+    if (!targetStr) return '';
+    targetStr = String(targetStr);
+    if (targetStr.includes(' ')) return targetStr;
+    if (targetStr.startsWith('+91')) return targetStr.replace(/^(\+91)(\d+)/, '$1 $2');
+    if (targetStr.startsWith('+1')) return targetStr.replace(/^(\+1)(\d+)/, '$1 $2');
+    return targetStr;
 }

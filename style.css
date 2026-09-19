@@ -866,6 +866,7 @@ body {
 .history-actions {
     display: flex;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .table-responsive {
@@ -1093,4 +1094,48 @@ body {
     .navbar { padding: 10px; }
     .status-label { display: none; } /* Hide text, keep pulsing dot for space */
     .api-status-pill { padding: 6px; border-radius: 50%; }
+}
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    min-width: 160px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    animation: slideDown 0.15s ease;
+}
+.dropdown-menu.hidden {
+    display: none !important;
+}
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    text-align: left;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-main);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+}
+.dropdown-item:hover {
+    background-color: var(--bg-hover);
+}
+.dropdown-item svg {
+    color: var(--text-muted);
 }
