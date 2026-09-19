@@ -1,3 +1,12 @@
+---
+title: Zyro
+emoji: 🚀
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+pinned: false
+app_port: 7860
+---
 # Zyro - SMS Bomber
 
 A clean, fast SMS bomber with a minimal web UI.
