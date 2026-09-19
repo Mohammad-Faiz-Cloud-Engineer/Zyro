@@ -411,15 +411,15 @@ function renderHistoryTable() {
 
     els.historyTableBody.innerHTML = state.history.map((row, idx) => `
         <tr>
-            <td style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-dim);">${state.history.length - idx}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.timestamp))}</td>
-            <td style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${escapeHtml(String(row.target))}</td>
-            <td title="${escapeHtml(row.message || '')}">${escapeHtml((row.message || '').length > 22 ? (row.message || '').substring(0, 22) + '...' : (row.message || ''))}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.requested))}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;" class="text-success">${escapeHtml(String(row.sent))}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;" class="text-danger">${escapeHtml(String(row.failed))}</td>
-            <td style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.latency))}</td>
-            <td><span class="badge-status ${escapeHtml(String(row.status))}">${escapeHtml(String(row.status))}</span></td>
+            <td data-label="#" style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-dim);">${state.history.length - idx}</td>
+            <td data-label="Timestamp" style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.timestamp))}</td>
+            <td data-label="Target" style="font-family: 'JetBrains Mono', monospace; font-weight: 600;">${escapeHtml(String(row.target))}</td>
+            <td data-label="Message" title="${escapeHtml(row.message || '')}">${escapeHtml((row.message || '').length > 22 ? (row.message || '').substring(0, 22) + '...' : (row.message || ''))}</td>
+            <td data-label="Requested" style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.requested))}</td>
+            <td data-label="Sent" style="font-family: 'JetBrains Mono', monospace;" class="text-success">${escapeHtml(String(row.sent))}</td>
+            <td data-label="Failed" style="font-family: 'JetBrains Mono', monospace;" class="text-danger">${escapeHtml(String(row.failed))}</td>
+            <td data-label="Latency" style="font-family: 'JetBrains Mono', monospace;">${escapeHtml(String(row.latency))}</td>
+            <td data-label="Status"><span class="badge-status ${escapeHtml(String(row.status))}">${escapeHtml(String(row.status))}</span></td>
         </tr>
     `).join('');
 }

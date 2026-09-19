@@ -964,6 +964,10 @@ body {
 .hidden { display: none !important; }
 
 /* ── Responsive Design ── */
+
+
+/* ── Aggressive Mobile Optimization (Native App Feel) ── */
+
 @media (max-width: 960px) {
     .metrics-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -973,11 +977,120 @@ body {
     }
 }
 
-@media (max-width: 540px) {
-    .metrics-grid {
-        grid-template-columns: 1fr;
+@media (max-width: 768px) {
+    /* Base Layout: Tighter gaps, maximum screen usage */
+    body { background-color: var(--bg-base); }
+    .app-layout { padding: 12px 8px; gap: 12px; }
+    
+    /* Navbar: Compact and single-line */
+    .navbar { 
+        padding: 10px 14px; 
+        flex-wrap: nowrap; 
+        gap: 8px;
+        border-radius: 12px;
     }
-    .app-layout {
-        padding: 16px;
+    .brand-title { font-size: 1.1rem; }
+    .api-status-pill { padding: 6px 10px; }
+    .status-label { font-size: 0.75rem; }
+    .pulse-dot { width: 6px; height: 6px; }
+    
+    /* Cards: Reduce dead space */
+    .card { padding: 16px 14px; border-radius: 14px; }
+    .workspace-grid { gap: 12px; }
+    .metrics-grid { gap: 10px; }
+    .metric-card { padding: 10px 12px; border-radius: 12px; }
+    .metric-val { font-size: 1.5rem; }
+    .metric-label { font-size: 0.75rem; }
+    
+    /* Typography */
+    .section-title { font-size: 1.1rem; margin-bottom: 12px; }
+    .form-label { font-size: 0.85rem; margin-bottom: 6px; }
+    
+    /* Forms: Inherit standard desktop sizing for cleaner look */
+    
+    /* Phone Input: Properly scaled for mobile */
+    .input-phone-group { flex-direction: row; border-radius: 10px; }
+    .country-code-wrapper { padding-left: 10px; border-right: 1px solid var(--border-subtle); }
+    .country-code-input { 
+        padding: 10px 4px; 
+        max-width: 45px; 
+        text-align: center; 
     }
+    .phone-number { padding: 10px 12px;  }
+    
+    /* Preset Chips */
+    .chip-group { gap: 6px; }
+    .chip { 
+        padding: 10px; 
+        font-size: 0.85rem; 
+        border-radius: 8px; 
+        flex: 1; 
+        text-align: center; 
+    }
+    
+    /* Range Slider: Massive touch targets */
+    .custom-range::-webkit-slider-thumb { width: 28px; height: 28px; margin-top: -11px; }
+    .custom-range::-webkit-slider-runnable-track { height: 6px; }
+    .custom-range::-moz-range-thumb { width: 28px; height: 28px; }
+    .custom-range::-moz-range-track { height: 6px; }
+    .range-bounds { font-size: 0.8rem; margin-top: 6px; }
+    
+    /* Action Buttons */
+    .btn-group { flex-direction: column; gap: 10px; margin-top: 10px; }
+    .btn { 
+        padding: 16px; 
+        font-size: 1.05rem; 
+        border-radius: 12px; 
+        width: 100%; 
+        justify-content: center;
+    }
+    
+    /* Live Terminal Log */
+    .terminal-window { height: 240px; border-radius: 12px; }
+    .log-line { font-size: 0.75rem; padding: 3px 0; align-items: flex-start; }
+    .log-time { flex-shrink: 0; color: var(--primary); width: 65px; }
+    .log-msg { word-break: break-word; flex: 1; }
+    
+    /* Payload Breakdown */
+    .breakdown-grid { grid-template-columns: 1fr; gap: 8px; }
+    
+    /* Toast Notifications: Full width docked to bottom */
+    .toast-container { 
+        bottom: 16px; left: 16px; right: 16px; 
+        padding: 0; align-items: stretch;
+    }
+    .toast { width: 100%; border-radius: 12px; padding: 14px 16px; }
+    
+    /* History Table -> Mobile Cards */
+    .history-table thead { display: none; }
+    .history-table, .history-table tbody, .history-table tr, .history-table td { 
+        display: block; width: 100%; 
+    }
+    .history-table tr { 
+        margin-bottom: 12px; border: 1px solid var(--border-subtle); 
+        border-radius: 12px; padding: 8px; background: var(--bg-base); 
+    }
+    .history-table td { 
+        display: flex; justify-content: space-between; align-items: center; 
+        border-bottom: 1px solid var(--border-subtle); 
+        padding: 10px 6px; text-align: right; 
+        font-size: 0.85rem;
+    }
+    .history-table td:last-child { border-bottom: none; }
+    .history-table td::before { 
+        content: attr(data-label); font-weight: 600; color: var(--text-dim); text-align: left;
+    }
+    .history-table td[colspan] { 
+        display: block; text-align: center; border: none; padding: 20px; 
+    }
+    .history-table td[colspan]::before { content: none; }
+}
+
+@media (max-width: 480px) {
+    /* Ultra-small phones */
+    .metrics-grid { grid-template-columns: 1fr; }
+    .brand-title { font-size: 1rem; }
+    .navbar { padding: 10px; }
+    .status-label { display: none; } /* Hide text, keep pulsing dot for space */
+    .api-status-pill { padding: 6px; border-radius: 50%; }
 }
