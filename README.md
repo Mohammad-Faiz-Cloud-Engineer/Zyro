@@ -38,7 +38,7 @@ server.js
 **For Local Development:** 
 Because of CORS restrictions on the API, run the included local proxy server:
 `node server.js`
-Then open `http://localhost:8080` in your browser.
+Then open `http://localhost:7860` in your browser (or the port in `PORT`).
 
 ## Tech
 
